@@ -263,158 +263,182 @@ export default function AdminDashboard() {
         return months[monthIndex] || 'N/A';
     };
 
-    const generatePDF = async (gstin: string) => {
-        setIsLoading(true);
-        try {
-            // Fetch the filtered data
-            const items = await filterDataForPDF(gstin);
-            console.log("items:", items);
+const generatePDF = async (gstin: string) => {
+    setIsLoading(true);
+    try {
+        const items = await filterDataForPDF(gstin);
+        if (!Array.isArray(items) || items.length === 0) {
+            console.error("No data found for the provided GSTIN or array is empty");
+            setIsLoading(false);
+            return;
+        }
 
-            // Check if there are any records
-            if (!Array.isArray(items) || items.length === 0) {
-                console.error("No data found for the provided GSTIN or array is empty");
-                setIsLoading(false);
-                return;
+        const uniqueKey = (item: CompanyData) =>
+            `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
+
+        const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
+
+        // Get today's date
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1; // Months are 0-based
+        const currentYear = today.getFullYear();
+
+        // Calculate financial years
+        let financialStartYear;
+        if (currentMonth >= 4) { // April or later
+            financialStartYear = currentYear;
+        } else { // Jan–March
+            financialStartYear = currentYear - 1;
+        }
+
+        const allowedYears = [
+            financialStartYear - 2,
+            financialStartYear - 1,
+            financialStartYear
+        ];
+
+        // Filter records based on financial years and months
+        const filteredItems = uniqueItems.filter(item => {
+            const year = parseInt(item.year || "0", 10);
+            const month = parseInt(item.month || "0", 10);
+
+            if (!allowedYears.includes(year)) {
+                return false;
             }
 
-            // Deduplicate records based on key fields
-            const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
-            const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
+            if (year === financialStartYear && month > currentMonth) {
+                return false; // Exclude future months in the current financial year
+            }
 
-            // Initialize jsPDF
-            const doc = new jsPDF();
+            return true;
+        });
 
-            doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22);
-            
-            // Add header text
-            doc.setFontSize(24);
-            doc.setFont('bold');
-            doc.text("Customer Due Diligence Report", 50, 15);
-            doc.setLineWidth(0.5);
-            doc.line(50, 18, 160, 18);
-            // Set font size for the rest of the content
-            doc.setFontSize(10);
+        if (filteredItems.length === 0) {
+            console.error("No relevant records found after applying financial year filter");
+            setIsLoading(false);
+            return;
+        }
 
-            // Calculate aggregates for summary
-            const delayedCount = uniqueItems.filter(item => item.delayed_filling === "Yes").length;
-            const total = uniqueItems.length;
-            const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
-            const avgDelay = total > 0 ? (uniqueItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
+        // Continue with PDF generation using filteredItems
+        const doc = new jsPDF();
+        doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22);
+        doc.setFontSize(24);
+        doc.setFont('bold');
+        doc.text("Customer Due Diligence Report", 50, 15);
+        doc.setLineWidth(0.5);
+        doc.line(50, 18, 160, 18);
+        doc.setFontSize(10);
 
-            // Add summary data as a table
-            const summaryTableData = [
-                ["GSTIN", uniqueItems[0].gstin || "N/A", "STATUS", uniqueItems[0].return_status || "N/A"],
-                ["LEGAL NAME", uniqueItems[0].legal_name || "N/A", "REG. DATE", uniqueItems[0].registration_date || "N/A"],
-                ["TRADE NAME", uniqueItems[0].trade_name || "N/A", "LAST UPDATE DATE", uniqueItems[0].last_update || "N/A"],
-                ["COMPANY TYPE", uniqueItems[0].company_type || "N/A", "STATE", uniqueItems[0].state || "N/A"],
-                ["% DELAYED FILLING", percent, "AVG. DELAY DAYS", avgDelay],
-                ["Address", uniqueItems[0].address || "N/A", "Result", uniqueItems[0].result || "N/A"],
-            ];
+        // Calculate aggregates based on filteredItems
+        const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length;
+        const total = filteredItems.length;
+        const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
+        const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
 
+        const summaryTableData = [
+            ["GSTIN", filteredItems[0].gstin || "N/A", "STATUS", filteredItems[0].return_status || "N/A"],
+            ["LEGAL NAME", filteredItems[0].legal_name || "N/A", "REG. DATE", filteredItems[0].registration_date || "N/A"],
+            ["TRADE NAME", filteredItems[0].trade_name || "N/A", "LAST UPDATE DATE", filteredItems[0].last_update || "N/A"],
+            ["COMPANY TYPE", filteredItems[0].company_type || "N/A", "STATE", filteredItems[0].state || "N/A"],
+            ["% DELAYED FILLING", percent, "AVG. DELAY DAYS", avgDelay],
+            ["Address", filteredItems[0].address || "N/A", "Result", filteredItems[0].result || "N/A"],
+        ];
+
+        doc.autoTable({
+            startY: 20,
+            head: [["", "", "", ""]],
+            body: summaryTableData,
+            theme: "grid",
+            headStyles: { fillColor: [230, 230, 230] },
+            styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
+            columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 70 }, 2: { cellWidth: 45 }, 3: { cellWidth: 30 } },
+        });
+
+        let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
+
+        // Sort filteredItems
+        filteredItems.sort((a, b) => {
+            const yearA = parseInt(a.year || "0", 10);
+            const yearB = parseInt(b.year || "0", 10);
+            const monthA = parseInt(a.month || "0", 10);
+            const monthB = parseInt(b.month || "0", 10);
+
+            if (yearA > yearB) return -1;
+            if (yearA < yearB) return 1;
+            if (monthA > monthB) return -1;
+            if (monthA < monthB) return 1;
+            return 0;
+        });
+
+        const prepareTableData = (records) =>
+            records.map((item) => [
+                item.year || "N/A",
+                getMonthName(item.month || "N/A"),
+                item.return_period || "N/A",
+                item.return_type || "N/A",
+                item.date_of_filing || "N/A",
+                item.delayed_filling || "N/A",
+                item.Delay_days || "N/A",
+            ]);
+
+        const gstr3bRecords = filteredItems.filter(item => item.return_type === "GSTR3B");
+        const otherRecords = filteredItems.filter(item => item.return_type !== "GSTR3B");
+
+        const gstr3bTableData = prepareTableData(gstr3bRecords);
+        const otherTableData = prepareTableData(otherRecords);
+
+        if (gstr3bTableData.length > 0) {
             doc.autoTable({
-                startY: 20,
-                head: [["", "", "", ""]],
-                body: summaryTableData,
+                startY: yPos,
+                head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
+                body: gstr3bTableData,
+                theme: "grid",
+                headStyles: { fillColor: [230, 230, 230] },
+                styles: { fontSize: 10, cellPadding: 4.7, textColor: [0, 0, 0] },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 30 },
+                    5: { cellWidth: 30 },
+                    6: { cellWidth: 25 },
+                },
+            });
+
+            yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 20 : 30;
+        }
+
+        if (otherTableData.length > 0) {
+            doc.setFontSize(20);
+            doc.text("Other Records", 80, yPos - 5);
+            doc.autoTable({
+                startY: yPos,
+                head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
+                body: otherTableData,
                 theme: "grid",
                 headStyles: { fillColor: [230, 230, 230] },
                 styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
-                columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 70 }, 2: { cellWidth: 45 }, 3: { cellWidth: 30 } },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 30 },
+                    5: { cellWidth: 30 },
+                    6: { cellWidth: 25 },
+                },
             });
-
-            // Get the Y position for the next table
-            let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
-
-            // Sorting logic for all items
-            uniqueItems.sort((a, b) => {
-                const yearA = parseInt(a.year || "0", 10);
-                const yearB = parseInt(b.year || "0", 10);
-                const monthA = parseInt(a.month || "0", 10);
-                const monthB = parseInt(b.month || "0", 10);
-
-                if (yearA > yearB) return -1;
-                if (yearA < yearB) return 1;
-                if (monthA > monthB) return -1;
-                if (monthA < monthB) return 1;
-
-                return 0;
-            });
-
-            // Prepare sorted data for tables
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const prepareTableData = (records: any[]) =>
-                records.map((item) => [
-                    item.year || "N/A",
-                    getMonthName(item.month || "N/A"),
-                    item.return_period || "N/A",
-                    item.return_type || "N/A",
-                    item.date_of_filing || "N/A",
-                    item.delayed_filling || "N/A",
-                    item.Delay_days || "N/A",
-                ]);
-
-            // Separate GSTR3B and other records
-            const gstr3bRecords = uniqueItems.filter((item) => item.return_type === "GSTR3B");
-            const otherRecords = uniqueItems.filter((item) => item.return_type !== "GSTR3B");
-
-            // Prepare table data
-            const gstr3bTableData = prepareTableData(gstr3bRecords);
-            const otherTableData = prepareTableData(otherRecords);
-
-            // Add GSTR3B records table
-            if (gstr3bTableData.length > 0) {
-                doc.autoTable({
-                    startY: yPos,
-                    head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
-                    body: gstr3bTableData,
-                    theme: "grid",
-                    headStyles: { fillColor: [230, 230, 230] },
-                    styles: { fontSize: 10, cellPadding: 4.7, textColor: [0, 0, 0] },
-                    columnStyles: {
-                        0: { cellWidth: 25 },
-                        1: { cellWidth: 30 },
-                        2: { cellWidth: 30 },
-                        3: { cellWidth: 25 },
-                        4: { cellWidth: 30 },
-                        5: { cellWidth: 30 },
-                        6: { cellWidth: 25 },
-                    },
-                });
-
-                yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 20 : 30;
-
-            }
-
-            // Add Other records table
-            if (otherTableData.length > 0) {
-                doc.setFontSize(20);
-                doc.text("Other Records", 80, yPos - 5);
-                doc.autoTable({
-                    startY: yPos,
-                    head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
-                    body: otherTableData,
-                    theme: "grid",
-                    headStyles: { fillColor: [230, 230, 230] },
-                    styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
-                    columnStyles: {
-                        0: { cellWidth: 25 },
-                        1: { cellWidth: 30 },
-                        2: { cellWidth: 30 },
-                        3: { cellWidth: 25 },
-                        4: { cellWidth: 30 },
-                        5: { cellWidth: 30 },
-                        6: { cellWidth: 25 },
-                    },
-                });
-            }
-
-            // Save the PDF
-            doc.save(`${gstin}_summary.pdf`);
-        } catch (error) {
-            console.error("Error generating PDF:", error);
-        } finally {
-            setIsLoading(false);
         }
-    };
+
+        doc.save(`${gstin}_summary.pdf`);
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+    } finally {
+        setIsLoading(false);
+    }
+};
+
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
 
