@@ -1046,8 +1046,8 @@ export default function AdminDashboard() {
                     styles: { fontSize: 10, cellPadding: 4.7, textColor: [0, 0, 0] },
                     columnStyles: {
                         0: { cellWidth: 25 },
-                        1: { cellWidth: 25 },
-                        2: { cellWidth: 35 },
+                        1: { cellWidth: 30 },
+                        2: { cellWidth: 30 },
                         3: { cellWidth: 25 },
                         4: { cellWidth: 30 },
                         5: { cellWidth: 30 },
@@ -1072,8 +1072,8 @@ export default function AdminDashboard() {
                     styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
                     columnStyles: {
                         0: { cellWidth: 25 },
-                        1: { cellWidth: 25 },
-                        2: { cellWidth: 35 },
+                        1: { cellWidth: 30 },
+                        2: { cellWidth: 30 },
                         3: { cellWidth: 25 },
                         4: { cellWidth: 30 },
                         5: { cellWidth: 30 },
