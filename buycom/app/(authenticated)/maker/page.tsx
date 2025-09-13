@@ -861,6 +861,11 @@ export default function AdminDashboard() {
         }
     };
 
+
+    // const handleStatusChange = (value: string) => {
+    //     setNewStatus(value)
+    // }
+
     const handleAnnualTurnoverChange = (value: string) => {
         setNewAnnualTurnover(value)
     }
@@ -933,6 +938,40 @@ export default function AdminDashboard() {
         return months[monthIndex] || 'N/A';
     };
 
+    // NEW: Helper function to determine if a record's filing date falls within the desired periods
+    // Periods: Last 2 FY (Apr 2023 - Mar 2024), Last FY (Apr 2024 - Mar 2025), Current FY passed months (Apr 2025 - Aug 2025)
+    // Parses date_of_filing and compares to boundaries
+    const isRecordInScope = (item: CompanyData): boolean => {
+        if (!item.date_of_filing) return false;
+        try {
+            // Parse filing date: assume format "dd-mm-yyyy"
+            const [day, month, year] = item.date_of_filing.split('-').map(Number);
+            const filingDate = new Date(year, month - 1, day); // JS Date: month 0-indexed
+
+            // FY boundaries (hardcoded for current date Sep 13, 2025)
+            // Last 2 FY: Apr 1, 2023 to Mar 31, 2024
+            const last2FYStart = new Date(2023, 3, 1); // Apr 1
+            const last2FYEnd = new Date(2024, 2, 31); // Mar 31
+            // Last FY: Apr 1, 2024 to Mar 31, 2025
+            const lastFYStart = new Date(2024, 3, 1);
+            const lastFYEnd = new Date(2025, 2, 31);
+            // Current FY passed: Apr 1, 2025 to Aug 31, 2025 (months 4-8, filing < Sep 13)
+            const currentFYStart = new Date(2025, 3, 1);
+            const currentFYPastEnd = new Date(2025, 8, 13); // Sep 13, but since passed months up to Aug
+
+            // Check if in any period
+            const inLast2FY = filingDate >= last2FYStart && filingDate <= last2FYEnd;
+            const inLastFY = filingDate >= lastFYStart && filingDate <= lastFYEnd;
+            const inCurrentFYPast = filingDate >= currentFYStart && filingDate < currentFYPastEnd &&
+                [4, 5, 6, 7, 8].includes(filingDate.getMonth() + 1); // JS month 0-11, +1 for 1-12
+
+            return inLast2FY || inLastFY || inCurrentFYPast;
+        } catch (e) {
+            console.error("Error parsing date for filtering:", item.date_of_filing, e);
+            return false;
+        }
+    };
+
     const generatePDF = async (gstin: string) => {
         setIsLoading(true);
         try {
@@ -947,23 +986,13 @@ export default function AdminDashboard() {
                 return;
             }
 
-            // Deduplicate records based on key fields
+            // NEW: Filter records to include only those in scope (last 2 FY, last FY, current FY passed months)
+            const scopedItems = items.filter(isRecordInScope);
+            console.log("Scoped items after filtering:", scopedItems.length);
+
+            // Deduplicate records based on key fields (only from scoped)
             const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
-            const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
-
-            // Calculate current FY start year (April-March FY)
-            const currentDate = new Date();
-            const currentYear = currentDate.getFullYear();
-            const currentMonth = currentDate.getMonth() + 1; // 1-12
-            const fyStartYear = (currentMonth >= 4) ? currentYear : currentYear - 1;
-
-            // Filter for last 2 FYs and current FY
-            // FY years: fyStartYear - 2, fyStartYear - 1, fyStartYear
-            const relevantYears = [fyStartYear - 2, fyStartYear - 1, fyStartYear];
-            const filteredItems = uniqueItems.filter(item => {
-                const itemYear = parseInt(item.year || '0');
-                return relevantYears.includes(itemYear);
-            });
+            const uniqueItems = Array.from(new Map(scopedItems.map(item => [uniqueKey(item), item])).values());
 
             // Initialize jsPDF
             const doc = new jsPDF();
@@ -979,20 +1008,20 @@ export default function AdminDashboard() {
             // Set font size for the rest of the content
             doc.setFontSize(10);
 
-            // Calculate aggregates for summary (only from filtered data)
-            const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length;
-            const total = filteredItems.length;
+            // Calculate aggregates for summary (only from scoped/unique items)
+            const delayedCount = uniqueItems.filter(item => item.delayed_filling === "Yes").length;
+            const total = uniqueItems.length;
             const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
-            const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
+            const avgDelay = total > 0 ? (uniqueItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
 
             // Add summary data as a table
             const summaryTableData = [
-                ["GSTIN", uniqueItems[0].gstin || "N/A", "STATUS", uniqueItems[0].return_status || "N/A"],
-                ["LEGAL NAME", uniqueItems[0].legal_name || "N/A", "REG. DATE", uniqueItems[0].registration_date || "N/A"],
-                ["TRADE NAME", uniqueItems[0].trade_name || "N/A", "LAST UPDATE DATE", uniqueItems[0].last_update || "N/A"],
-                ["COMPANY TYPE", uniqueItems[0].company_type || "N/A", "STATE", uniqueItems[0].state || "N/A"],
+                ["GSTIN", uniqueItems[0]?.gstin || "N/A", "STATUS", uniqueItems[0]?.return_status || "N/A"],
+                ["LEGAL NAME", uniqueItems[0]?.legal_name || "N/A", "REG. DATE", uniqueItems[0]?.registration_date || "N/A"],
+                ["TRADE NAME", uniqueItems[0]?.trade_name || "N/A", "LAST UPDATE DATE", uniqueItems[0]?.last_update || "N/A"],
+                ["COMPANY TYPE", uniqueItems[0]?.company_type || "N/A", "STATE", uniqueItems[0]?.state || "N/A"],
                 ["% DELAYED FILLING", percent, "AVG. DELAY DAYS", avgDelay],
-                ["Address", uniqueItems[0].address || "N/A", "Result", uniqueItems[0].result || "N/A"],
+                ["Address", uniqueItems[0]?.address || "N/A", "Result", uniqueItems[0]?.result || "N/A"],
             ];
 
             doc.autoTable({
@@ -1008,8 +1037,8 @@ export default function AdminDashboard() {
             // Get the Y position for the next table
             let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
 
-            // Sorting logic for filtered items
-            filteredItems.sort((a, b) => {
+            // Sorting logic for all items (descending year/month)
+            uniqueItems.sort((a, b) => {
                 const yearA = parseInt(a.year || "0", 10);
                 const yearB = parseInt(b.year || "0", 10);
                 const monthA = parseInt(a.month || "0", 10);
@@ -1023,7 +1052,7 @@ export default function AdminDashboard() {
                 return 0;
             });
 
-            // Prepare table data
+            // Prepare sorted data for tables
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const prepareTableData = (records: any[]) =>
                 records.map((item) => [
@@ -1036,9 +1065,9 @@ export default function AdminDashboard() {
                     item.Delay_days || "N/A",
                 ]);
 
-            // Separate GSTR3B and other records from filtered
-            const gstr3bRecords = filteredItems.filter((item) => item.return_type === "GSTR3B");
-            const otherRecords = filteredItems.filter((item) => item.return_type !== "GSTR3B");
+            // Separate GSTR3B and other records
+            const gstr3bRecords = uniqueItems.filter((item) => item.return_type === "GSTR3B");
+            const otherRecords = uniqueItems.filter((item) => item.return_type !== "GSTR3B");
 
             // Prepare table data
             const gstr3bTableData = prepareTableData(gstr3bRecords);
@@ -1101,6 +1130,10 @@ export default function AdminDashboard() {
     };
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
+
+    // const handlePageChange = (page: number) => {
+    //     setCurrentPage(page)
+    // }
 
     const sortData = (data: CompanyData[]) => {
         if (!sortConfig || !sortConfig.key) return data;
@@ -1270,9 +1303,9 @@ export default function AdminDashboard() {
                                     <TableCell>{item.annual_turnover || ''}</TableCell>
                                     <TableCell>{item.result || 'Hold'}</TableCell>
                                     <TableCell>
-                                        <Button variant="outline" size="sm" onClick={() => generatePDF(item.gstin || '')} className="mr-2" type="button" disabled={isLoading}>
+                                        <Button variant="outline" size="sm" onClick={() => generatePDF(item.gstin || '')} className="mr-2" type="submit" disabled={isLoading}>
                                             {isLoading ? (
-                                                <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
+                                                <img src="/gif/loading.gif" alt="Loading..." className="w-16 h-6" />
                                             ) : (
                                                 "Download"
                                             )}
@@ -1286,6 +1319,20 @@ export default function AdminDashboard() {
                                                     <DialogTitle>Edit Company Details</DialogTitle>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
+                                                    {/* <div className="grid grid-cols-4 items-center gap-4">
+                                                        <label htmlFor="status" className="text-right">
+                                                            Status
+                                                        </label>
+                                                        <Select onValueChange={handleStatusChange} defaultValue={item.result}>
+                                                            <SelectTrigger className="col-span-3">
+                                                                <SelectValue placeholder="Select status" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Pass">Pass</SelectItem>
+                                                                <SelectItem value="Fail">Fail</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div> */}
                                                     <div className="grid grid-cols-4 items-center gap-4">
                                                         <label htmlFor="annual_turnover" className="text-right">
                                                             Annual Turnover (Cr.)
@@ -1299,7 +1346,7 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-end space-x-4">
-                                                    <Button type="button" disabled={isLoading} onClick={handleSaveChanges}>
+                                                    <Button type="submit" disabled={isLoading} onClick={handleSaveChanges}>
                                                         {isLoading ? (
                                                             <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
                                                         ) : (
