@@ -696,6 +696,7 @@ import {
 } from "@/components/ui/select"
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import Image from 'next/image'
 import API_URL from '@/config'
 
 import { UserOptions as AutoTableUserOptions } from 'jspdf-autotable'
@@ -750,8 +751,8 @@ export default function AdminDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [isAdmin, setIsAdmin] = useState(false)
     const router = useRouter()
-    const [error, setError] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("")
+    const [isLoading, setIsLoading] = useState(false)
     const [filters, setFilters] = useState({
         legal_name: '',
         gstin: '',
@@ -760,6 +761,26 @@ export default function AdminDashboard() {
     })
     const [searchQuery, setSearchQuery] = useState('')
     const [sortConfig, setSortConfig] = useState<{ key: keyof CompanyData; direction: 'ascending' | 'descending' } | null>(null)
+
+    const sortData = (data: CompanyData[]) => {
+        if (!sortConfig || !sortConfig.key) return data
+        return [...data].sort((a, b) => {
+            const aValue = a[sortConfig.key]
+            const bValue = b[sortConfig.key]
+
+            if (aValue === undefined && bValue === undefined) return 0
+            if (aValue === undefined) return 1
+            if (bValue === undefined) return -1
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'ascending' ? -1 : 1
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'ascending' ? 1 : -1
+            }
+            return 0
+        })
+    }
 
     useEffect(() => {
         const token = localStorage.getItem('auth_tokens')
@@ -795,7 +816,7 @@ export default function AdminDashboard() {
 
         setDisplayData(sortedData)
         setCurrentPage(1)
-    }, [filters, searchQuery, allData, sortConfig])
+    }, [filters, searchQuery, allData, sortConfig, sortData])
 
     const fetchData = async () => {
         try {
@@ -818,26 +839,25 @@ export default function AdminDashboard() {
     }
 
     const validateGST = (gstin: string) => {
-        // Example GST validation regex for India (15 alphanumeric characters starting with digits, ending with a letter)
-        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/i;
-        return gstRegex.test(gstin);
-    };
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/i
+        return gstRegex.test(gstin)
+    }
 
     const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(""); // Clear any previous errors
+        e.preventDefault()
+        setError("")
 
         if (!searchQuery) {
-            setError("GST Number is required.");
-            return;
+            setError("GST Number is required.")
+            return
         }
 
         if (!validateGST(searchQuery.trim())) {
-            setError("Invalid GSTIN. Please enter a valid GSTIN.");
-            return;
+            setError("Invalid GSTIN. Please enter a valid GSTIN.")
+            return
         }
 
-        setIsLoading(true);
+        setIsLoading(true)
         try {
             const response = await fetch(`${API_URL}/fetch_and_save_gst_record/`, {
                 method: "POST",
@@ -845,21 +865,21 @@ export default function AdminDashboard() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ gstin: searchQuery }),
-            });
+            })
 
             if (response.ok) {
-                console.log("Record updated successfully");
-                setTimeout(() => fetchData(), 1000);
+                console.log("Record updated successfully")
+                setTimeout(() => fetchData(), 1000)
             } else {
-                console.error("Failed to updating record");
+                console.error("Failed to updating record")
             }
         } catch (error) {
-            console.error("Error fetching company details:", error);
+            console.error("Error fetching company details:", error)
         } finally {
-            setIsLoading(false);
-            setSearchQuery("");
+            setIsLoading(false)
+            setSearchQuery("")
         }
-    };
+    }
 
     const handleAnnualTurnoverChange = (value: string) => {
         setNewAnnualTurnover(value)
@@ -867,41 +887,41 @@ export default function AdminDashboard() {
 
     const handleSaveChanges = async () => {
         if (editingId !== null) {
-            const selectedItem = allData.find(item => item.id === editingId);
+            const selectedItem = allData.find(item => item.id === editingId)
             if (!selectedItem) {
-                console.error("Selected item not found");
-                return;
+                console.error("Selected item not found")
+                return
             }
 
             const bodyData = {
                 gstin: selectedItem.gstin,
                 annual_turnover: newAnnualTurnover ? parseFloat(newAnnualTurnover) : selectedItem.annual_turnover,
-            };
+            }
 
             try {
-                setIsLoading(true);
+                setIsLoading(true)
                 const response = await fetch(`${API_URL}/update_annual_turnover/`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(bodyData),
-                });
+                })
 
                 if (response.ok) {
-                    console.log("Record updated successfully");
-                    await fetchData();
+                    console.log("Record updated successfully")
+                    await fetchData()
                 } else {
-                    console.error("Failed to updating record");
+                    console.error("Failed to updating record")
                 }
             } catch (error) {
-                console.error("Error updating record:", error);
+                console.error("Error updating record:", error)
             }
-            setIsLoading(false);
-            setEditingId(null);
-            setNewAnnualTurnover('');
+            setIsLoading(false)
+            setEditingId(null)
+            setNewAnnualTurnover('')
         }
-    };
+    }
 
     const handleFilterChange = (key: string, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }))
@@ -927,61 +947,53 @@ export default function AdminDashboard() {
         const months = [
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
-        ];
+        ]
 
-        const monthIndex = parseInt(monthNumber, 10) - 1;
-        return months[monthIndex] || 'N/A';
-    };
+        const monthIndex = parseInt(monthNumber, 10) - 1
+        return months[monthIndex] || 'N/A'
+    }
 
     const generatePDF = async (gstin: string) => {
-        setIsLoading(true);
+        setIsLoading(true)
         try {
-            // Fetch the filtered data
-            const items = await filterDataForPDF(gstin);
-            console.log("items:", items);
+            const items = await filterDataForPDF(gstin)
+            console.log("items:", items)
 
-            // Check if there are any records
             if (!Array.isArray(items) || items.length === 0) {
-                console.error("No data found for the provided GSTIN or array is empty");
-                setIsLoading(false);
-                return;
+                console.error("No data found for the provided GSTIN or array is empty")
+                setIsLoading(false)
+                return
             }
 
-            // Deduplicate records based on key fields
-            const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
-            const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
+            const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`
+            const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values())
 
-            // Calculate current FY start year (April-March FY) for September 13, 2025
-            const fyStartYear = 2025;
-            const relevantYears = [2023, 2024, 2025];
-
-            // Filter for last 2 FYs and current FY
+            const currentDate = new Date('2025-09-13T18:23:00+05:30')
+            const currentYear = currentDate.getFullYear()
+            const currentMonth = currentDate.getMonth() + 1
+            const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1
+            const relevantYears = [fyStartYear - 2, fyStartYear - 1, fyStartYear]
             const filteredItems = uniqueItems.filter(item => {
-                const itemYear = parseInt(item.year || '0');
-                return relevantYears.includes(itemYear);
-            });
+                const itemYear = parseInt(item.year || '0')
+                return relevantYears.includes(itemYear)
+            })
 
-            // Initialize jsPDF
-            const doc = new jsPDF();
+            const doc = new jsPDF()
 
-            doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22);
+            doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22)
             
-            // Add header text
-            doc.setFontSize(24);
-            doc.setFont('bold');
-            doc.text("Customer Due Diligence Report", 50, 15);
-            doc.setLineWidth(0.5);
-            doc.line(50, 18, 160, 18);
-            // Set font size for the rest of the content
-            doc.setFontSize(10);
+            doc.setFontSize(24)
+            doc.setFont('bold')
+            doc.text("Customer Due Diligence Report", 50, 15)
+            doc.setLineWidth(0.5)
+            doc.line(50, 18, 160, 18)
+            doc.setFontSize(10)
 
-            // Calculate aggregates for summary (only from filtered data)
-            const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length;
-            const total = filteredItems.length;
-            const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
-            const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
+            const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length
+            const total = filteredItems.length
+            const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%"
+            const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0"
 
-            // Add summary data as a table
             const summaryTableData = [
                 ["GSTIN", uniqueItems[0].gstin || "N/A", "STATUS", uniqueItems[0].return_status || "N/A"],
                 ["LEGAL NAME", uniqueItems[0].legal_name || "N/A", "REG. DATE", uniqueItems[0].registration_date || "N/A"],
@@ -989,7 +1001,7 @@ export default function AdminDashboard() {
                 ["COMPANY TYPE", uniqueItems[0].company_type || "N/A", "STATE", uniqueItems[0].state || "N/A"],
                 ["% DELAYED FILLING", percent, "AVG. DELAY DAYS", avgDelay],
                 ["Address", uniqueItems[0].address || "N/A", "Result", uniqueItems[0].result || "N/A"],
-            ];
+            ]
 
             doc.autoTable({
                 startY: 20,
@@ -999,28 +1011,23 @@ export default function AdminDashboard() {
                 headStyles: { fillColor: [230, 230, 230] },
                 styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
                 columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 70 }, 2: { cellWidth: 45 }, 3: { cellWidth: 30 } },
-            });
+            })
 
-            // Get the Y position for the next table
-            let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
+            let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20
 
-            // Sorting logic for filtered items
             filteredItems.sort((a, b) => {
-                const yearA = parseInt(a.year || "0", 10);
-                const yearB = parseInt(b.year || "0", 10);
-                const monthA = parseInt(a.month || "0", 10);
-                const monthB = parseInt(b.month || "0", 10);
+                const yearA = parseInt(a.year || "0", 10)
+                const yearB = parseInt(b.year || "0", 10)
+                const monthA = parseInt(a.month || "0", 10)
+                const monthB = parseInt(b.month || "0", 10)
 
-                if (yearA > yearB) return -1;
-                if (yearA < yearB) return 1;
-                if (monthA > monthB) return -1;
-                if (monthA < monthB) return 1;
+                if (yearA > yearB) return -1
+                if (yearA < yearB) return 1
+                if (monthA > monthB) return -1
+                if (monthA < monthB) return 1
+                return 0
+            })
 
-                return 0;
-            });
-
-            // Prepare table data
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const prepareTableData = (records: any[]) =>
                 records.map((item) => [
                     item.year || "N/A",
@@ -1028,19 +1035,16 @@ export default function AdminDashboard() {
                     item.return_period || "N/A",
                     item.return_type || "N/A",
                     item.date_of_filing || "N/A",
-                    item.delayed_filling || "N/A",
+                    item.delayed_filing || "N/A",
                     item.Delay_days || "N/A",
-                ]);
+                ])
 
-            // Separate GSTR3B and other records from filtered
-            const gstr3bRecords = filteredItems.filter((item) => item.return_type === "GSTR3B");
-            const otherRecords = filteredItems.filter((item) => item.return_type !== "GSTR3B");
+            const gstr3bRecords = filteredItems.filter((item) => item.return_type === "GSTR3B")
+            const otherRecords = filteredItems.filter((item) => item.return_type !== "GSTR3B")
 
-            // Prepare table data
-            const gstr3bTableData = prepareTableData(gstr3bRecords);
-            const otherTableData = prepareTableData(otherRecords);
+            const gstr3bTableData = prepareTableData(gstr3bRecords)
+            const otherTableData = prepareTableData(otherRecords)
 
-            // Add GSTR3B records table
             if (gstr3bTableData.length > 0) {
                 doc.autoTable({
                     startY: yPos,
@@ -1058,16 +1062,14 @@ export default function AdminDashboard() {
                         5: { cellWidth: 30 },
                         6: { cellWidth: 25 },
                     },
-                });
+                })
 
-                yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 20 : 30;
-
+                yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 20 : 30
             }
 
-            // Add Other records table
             if (otherTableData.length > 0) {
-                doc.setFontSize(20);
-                doc.text("Other Records", 80, yPos - 5);
+                doc.setFontSize(20)
+                doc.text("Other Records", 80, yPos - 5)
                 doc.autoTable({
                     startY: yPos,
                     head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
@@ -1084,51 +1086,30 @@ export default function AdminDashboard() {
                         5: { cellWidth: 30 },
                         6: { cellWidth: 25 },
                     },
-                });
+                })
             }
 
-            // Save the PDF
-            doc.save(`${gstin}_summary.pdf`);
+            doc.save(`${gstin}_summary.pdf`)
         } catch (error) {
-            console.error("Error generating PDF:", error);
+            console.error("Error generating PDF:", error)
         } finally {
-            setIsLoading(false);
+            setIsLoading(false)
         }
-    };
+    }
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
-
-    const sortData = (data: CompanyData[]) => {
-        if (!sortConfig || !sortConfig.key) return data;
-        return [...data].sort((a, b) => {
-            const aValue = a[sortConfig.key];
-            const bValue = b[sortConfig.key];
-
-            if (aValue === undefined && bValue === undefined) return 0;
-            if (aValue === undefined) return 1;
-            if (bValue === undefined) return -1;
-
-            if (aValue < bValue) {
-                return sortConfig.direction === 'ascending' ? -1 : 1;
-            }
-            if (aValue > bValue) {
-                return sortConfig.direction === 'ascending' ? 1 : -1;
-            }
-            return 0;
-        });
-    };
 
     const handleSort = (key: keyof CompanyData) => {
         setSortConfig(prevConfig => {
             if (!prevConfig || prevConfig.key !== key) {
-                return { key, direction: 'ascending' };
+                return { key, direction: 'ascending' }
             }
             if (prevConfig.direction === 'ascending') {
-                return { key, direction: 'descending' };
+                return { key, direction: 'descending' }
             }
-            return null;
-        });
-    };
+            return null
+        })
+    }
 
     if (!isAuthenticated || !isAdmin) {
         return <div>Loading...</div>
@@ -1144,13 +1125,11 @@ export default function AdminDashboard() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search by GSTIN"
-                            // className="flex-grow"
-                            className={`flex-grow p-2 border ${error ? "border-red-500" : "border-gray-300"
-                                } rounded-md`}
+                            className={`flex-grow p-2 border ${error ? "border-red-500" : "border-gray-300"} rounded-md`}
                         />
                         <Button type="submit" disabled={isLoading}>
                             {isLoading ? (
-                                <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
+                                <Image src="/gif/loading.gif" alt="Loading..." width={24} height={24} />
                             ) : (
                                 "Add/update Company"
                             )}
@@ -1268,7 +1247,7 @@ export default function AdminDashboard() {
                                     <TableCell>
                                         <Button variant="outline" size="sm" onClick={() => generatePDF(item.gstin || '')} className="mr-2" type="button" disabled={isLoading}>
                                             {isLoading ? (
-                                                <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
+                                                <Image src="/gif/loading.gif" alt="Loading..." width={24} height={24} />
                                             ) : (
                                                 "Download"
                                             )}
@@ -1297,7 +1276,7 @@ export default function AdminDashboard() {
                                                 <div className="flex justify-end space-x-4">
                                                     <Button type="button" disabled={isLoading} onClick={handleSaveChanges}>
                                                         {isLoading ? (
-                                                            <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
+                                                            <Image src="/gif/loading.gif" alt="Loading..." width={24} height={24} />
                                                         ) : (
                                                             "Save Changes"
                                                         )}
