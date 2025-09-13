@@ -1,4 +1,3 @@
-
 // 'use client'
 
 // import { useState, useEffect } from 'react'
@@ -59,6 +58,7 @@
 //     result?: string;
 //     year?: string;
 //     month?: string;
+//     return_period?: string;
 //     return_type?: string;
 //     date_of_filing?: string;
 //     annual_turnover?: number;
@@ -204,9 +204,7 @@
 //             }
 
 //             const bodyData = {
-//                 id: editingId,
 //                 gstin: selectedItem.gstin,
-//                 // status: newStatus || selectedItem.result,
 //                 annual_turnover: newAnnualTurnover ? parseFloat(newAnnualTurnover) : selectedItem.annual_turnover,
 //             };
 
@@ -239,12 +237,12 @@
 //         setFilters(prev => ({ ...prev, [key]: value }))
 //     }
 
-//     const filterDataForPDF = async (gstin: string): Promise<CompanyData | null> => {
+//     const filterDataForPDF = async (gstin: string): Promise<CompanyData[] | null> => {
 //         try {
 //             const response = await fetch(`${API_URL}/companies/${gstin}/`)
 //             if (response.ok) {
 //                 const data = await response.json()
-//                 return data || null
+//                 return Array.isArray(data) ? data : null
 //             } else {
 //                 console.error("Failed to fetch company data")
 //                 return null
@@ -279,17 +277,14 @@
 //                 return;
 //             }
 
+//             // Deduplicate records based on key fields
+//             const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
+//             const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
+
 //             // Initialize jsPDF
 //             const doc = new jsPDF();
 
-            
-
-                        
-//             // const logoBase64 = "data:image/png;base64,...."; 
-//             // const logoBase64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAOmBQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9Dv2c/wDk3z4Yf9ibov8A6Qw16LXnX7Of/Jvnww/7E3Rf/SGGvRaACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDzr9nP/AJN8+GH/AGJui/8ApDDXotedfs5/8m+fDD/sTdF/9IYa9FoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA86/Zz/5N8+GH/Ym6L/6Qw16LXnX7Of/ACb58MP+xN0X/wBIYa9FoAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==";
-//             // doc.addImage(logoBase64, "JPEG", 10, 0, 30, 22);
 //             doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22);
-
             
 //             // Add header text
 //             doc.setFontSize(24);
@@ -300,14 +295,20 @@
 //             // Set font size for the rest of the content
 //             doc.setFontSize(10);
 
+//             // Calculate aggregates for summary
+//             const delayedCount = uniqueItems.filter(item => item.delayed_filling === "Yes").length;
+//             const total = uniqueItems.length;
+//             const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
+//             const avgDelay = total > 0 ? (uniqueItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
+
 //             // Add summary data as a table
 //             const summaryTableData = [
-//                 ["GSTIN", items[0].gstin || "N/A", "STATUS", items[0].return_status || "N/A"],
-//                 ["LEGAL NAME", items[0].legal_name || "N/A", "REG. DATE", items[0].registration_date || "N/A"],
-//                 ["TRADE NAME", items[0].trade_name || "N/A", "LAST UPDATE DATE", items[0].last_update || "N/A"],
-//                 ["COMPANY TYPE", items[0].company_type || "N/A", "STATE", items[0].state || "N/A"],
-//                 ["% DELAYED FILLING", items[0].delayed_filling || "N/A", "AVG. DELAY DAYS", items[0].Delay_days || "N/A"],
-//                 ["Address", items[0].address || "N/A", "Result", items[0].result || "N/A"],
+//                 ["GSTIN", uniqueItems[0].gstin || "N/A", "STATUS", uniqueItems[0].return_status || "N/A"],
+//                 ["LEGAL NAME", uniqueItems[0].legal_name || "N/A", "REG. DATE", uniqueItems[0].registration_date || "N/A"],
+//                 ["TRADE NAME", uniqueItems[0].trade_name || "N/A", "LAST UPDATE DATE", uniqueItems[0].last_update || "N/A"],
+//                 ["COMPANY TYPE", uniqueItems[0].company_type || "N/A", "STATE", uniqueItems[0].state || "N/A"],
+//                 ["% DELAYED FILLING", percent, "AVG. DELAY DAYS", avgDelay],
+//                 ["Address", uniqueItems[0].address || "N/A", "Result", uniqueItems[0].result || "N/A"],
 //             ];
 
 //             doc.autoTable({
@@ -324,7 +325,7 @@
 //             let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
 
 //             // Sorting logic for all items
-//             items.sort((a, b) => {
+//             uniqueItems.sort((a, b) => {
 //                 const yearA = parseInt(a.year || "0", 10);
 //                 const yearB = parseInt(b.year || "0", 10);
 //                 const monthA = parseInt(a.month || "0", 10);
@@ -344,6 +345,7 @@
 //                 records.map((item) => [
 //                     item.year || "N/A",
 //                     getMonthName(item.month || "N/A"),
+//                     item.return_period || "N/A",
 //                     item.return_type || "N/A",
 //                     item.date_of_filing || "N/A",
 //                     item.delayed_filling || "N/A",
@@ -351,8 +353,8 @@
 //                 ]);
 
 //             // Separate GSTR3B and other records
-//             const gstr3bRecords = items.filter((item) => item.return_type === "GSTR3B");
-//             const otherRecords = items.filter((item) => item.return_type !== "GSTR3B");
+//             const gstr3bRecords = uniqueItems.filter((item) => item.return_type === "GSTR3B");
+//             const otherRecords = uniqueItems.filter((item) => item.return_type !== "GSTR3B");
 
 //             // Prepare table data
 //             const gstr3bTableData = prepareTableData(gstr3bRecords);
@@ -360,22 +362,21 @@
 
 //             // Add GSTR3B records table
 //             if (gstr3bTableData.length > 0) {
-
-
 //                 doc.autoTable({
 //                     startY: yPos,
-//                     head: [["Year", "Month", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
+//                     head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
 //                     body: gstr3bTableData,
 //                     theme: "grid",
 //                     headStyles: { fillColor: [230, 230, 230] },
 //                     styles: { fontSize: 10, cellPadding: 4.7, textColor: [0, 0, 0] },
 //                     columnStyles: {
-//                         0: { cellWidth: 30 },
+//                         0: { cellWidth: 25 },
 //                         1: { cellWidth: 30 },
 //                         2: { cellWidth: 30 },
-//                         3: { cellWidth: 35 },
-//                         4: { cellWidth: 35 },
+//                         3: { cellWidth: 25 },
+//                         4: { cellWidth: 30 },
 //                         5: { cellWidth: 30 },
+//                         6: { cellWidth: 25 },
 //                     },
 //                 });
 
@@ -389,18 +390,19 @@
 //                 doc.text("Other Records", 80, yPos - 5);
 //                 doc.autoTable({
 //                     startY: yPos,
-//                     head: [["Year", "Month", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
+//                     head: [["Year", "Month", "Return Period", "Return Type", "Date of Filing", "Delayed Filing", "Delay Days"]],
 //                     body: otherTableData,
 //                     theme: "grid",
 //                     headStyles: { fillColor: [230, 230, 230] },
 //                     styles: { fontSize: 10, cellPadding: 3, textColor: [0, 0, 0] },
 //                     columnStyles: {
-//                         0: { cellWidth: 30 },
+//                         0: { cellWidth: 25 },
 //                         1: { cellWidth: 30 },
 //                         2: { cellWidth: 30 },
-//                         3: { cellWidth: 35 },
-//                         4: { cellWidth: 35 },
+//                         3: { cellWidth: 25 },
+//                         4: { cellWidth: 30 },
 //                         5: { cellWidth: 30 },
+//                         6: { cellWidth: 25 },
 //                     },
 //                 });
 //             }
@@ -671,8 +673,6 @@
 //         </div>
 //     )
 // }
-
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -861,11 +861,6 @@ export default function AdminDashboard() {
         }
     };
 
-
-    // const handleStatusChange = (value: string) => {
-    //     setNewStatus(value)
-    // }
-
     const handleAnnualTurnoverChange = (value: string) => {
         setNewAnnualTurnover(value)
     }
@@ -956,6 +951,20 @@ export default function AdminDashboard() {
             const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
             const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
 
+            // Calculate current FY start year (April-March FY)
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1; // 1-12
+            const fyStartYear = (currentMonth >= 4) ? currentYear : currentYear - 1;
+
+            // Filter for last 2 FYs and current FY
+            // FY years: fyStartYear - 2, fyStartYear - 1, fyStartYear
+            const relevantYears = [fyStartYear - 2, fyStartYear - 1, fyStartYear];
+            const filteredItems = uniqueItems.filter(item => {
+                const itemYear = parseInt(item.year || '0');
+                return relevantYears.includes(itemYear);
+            });
+
             // Initialize jsPDF
             const doc = new jsPDF();
 
@@ -970,11 +979,11 @@ export default function AdminDashboard() {
             // Set font size for the rest of the content
             doc.setFontSize(10);
 
-            // Calculate aggregates for summary
-            const delayedCount = uniqueItems.filter(item => item.delayed_filling === "Yes").length;
-            const total = uniqueItems.length;
+            // Calculate aggregates for summary (only from filtered data)
+            const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length;
+            const total = filteredItems.length;
             const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
-            const avgDelay = total > 0 ? (uniqueItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
+            const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
 
             // Add summary data as a table
             const summaryTableData = [
@@ -999,8 +1008,8 @@ export default function AdminDashboard() {
             // Get the Y position for the next table
             let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
 
-            // Sorting logic for all items
-            uniqueItems.sort((a, b) => {
+            // Sorting logic for filtered items
+            filteredItems.sort((a, b) => {
                 const yearA = parseInt(a.year || "0", 10);
                 const yearB = parseInt(b.year || "0", 10);
                 const monthA = parseInt(a.month || "0", 10);
@@ -1014,7 +1023,7 @@ export default function AdminDashboard() {
                 return 0;
             });
 
-            // Prepare sorted data for tables
+            // Prepare table data
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const prepareTableData = (records: any[]) =>
                 records.map((item) => [
@@ -1027,9 +1036,9 @@ export default function AdminDashboard() {
                     item.Delay_days || "N/A",
                 ]);
 
-            // Separate GSTR3B and other records
-            const gstr3bRecords = uniqueItems.filter((item) => item.return_type === "GSTR3B");
-            const otherRecords = uniqueItems.filter((item) => item.return_type !== "GSTR3B");
+            // Separate GSTR3B and other records from filtered
+            const gstr3bRecords = filteredItems.filter((item) => item.return_type === "GSTR3B");
+            const otherRecords = filteredItems.filter((item) => item.return_type !== "GSTR3B");
 
             // Prepare table data
             const gstr3bTableData = prepareTableData(gstr3bRecords);
@@ -1092,10 +1101,6 @@ export default function AdminDashboard() {
     };
 
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber)
-
-    // const handlePageChange = (page: number) => {
-    //     setCurrentPage(page)
-    // }
 
     const sortData = (data: CompanyData[]) => {
         if (!sortConfig || !sortConfig.key) return data;
@@ -1265,9 +1270,9 @@ export default function AdminDashboard() {
                                     <TableCell>{item.annual_turnover || ''}</TableCell>
                                     <TableCell>{item.result || 'Hold'}</TableCell>
                                     <TableCell>
-                                        <Button variant="outline" size="sm" onClick={() => generatePDF(item.gstin || '')} className="mr-2" type="submit" disabled={isLoading}>
+                                        <Button variant="outline" size="sm" onClick={() => generatePDF(item.gstin || '')} className="mr-2" type="button" disabled={isLoading}>
                                             {isLoading ? (
-                                                <img src="/gif/loading.gif" alt="Loading..." className="w-16 h-6" />
+                                                <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
                                             ) : (
                                                 "Download"
                                             )}
@@ -1281,20 +1286,6 @@ export default function AdminDashboard() {
                                                     <DialogTitle>Edit Company Details</DialogTitle>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
-                                                    {/* <div className="grid grid-cols-4 items-center gap-4">
-                                                        <label htmlFor="status" className="text-right">
-                                                            Status
-                                                        </label>
-                                                        <Select onValueChange={handleStatusChange} defaultValue={item.result}>
-                                                            <SelectTrigger className="col-span-3">
-                                                                <SelectValue placeholder="Select status" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="Pass">Pass</SelectItem>
-                                                                <SelectItem value="Fail">Fail</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div> */}
                                                     <div className="grid grid-cols-4 items-center gap-4">
                                                         <label htmlFor="annual_turnover" className="text-right">
                                                             Annual Turnover (Cr.)
@@ -1308,7 +1299,7 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-end space-x-4">
-                                                    <Button type="submit" disabled={isLoading} onClick={handleSaveChanges}>
+                                                    <Button type="button" disabled={isLoading} onClick={handleSaveChanges}>
                                                         {isLoading ? (
                                                             <img src="/gif/loading.gif" alt="Loading..." className="w-6 h-6" />
                                                         ) : (
