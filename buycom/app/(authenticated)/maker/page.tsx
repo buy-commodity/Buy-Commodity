@@ -733,7 +733,7 @@ interface CompanyData {
     result?: string;
     year?: string;
     month?: string;
-    ret_prd?: string;
+    return_period?: string;
     return_type?: string;
     date_of_filing?: string;
     annual_turnover?: number;
@@ -953,7 +953,7 @@ export default function AdminDashboard() {
             }
 
             // Deduplicate records based on key fields
-            const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.ret_prd || ''}`;
+            const uniqueKey = (item: CompanyData) => `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
             const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
 
             // Initialize jsPDF
@@ -1020,7 +1020,7 @@ export default function AdminDashboard() {
                 records.map((item) => [
                     item.year || "N/A",
                     getMonthName(item.month || "N/A"),
-                    item.ret_prd || "N/A",
+                    item.return_period || "N/A",
                     item.return_type || "N/A",
                     item.date_of_filing || "N/A",
                     item.delayed_filling || "N/A",
