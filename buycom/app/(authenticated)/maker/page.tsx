@@ -370,7 +370,7 @@ const generatePDF = async (gstin: string) => {
             return 0;
         });
 
-        const prepareTableData = (records) =>
+        const prepareTableData = (records: CompanyData[]) =>
             records.map((item) => [
                 item.year || "N/A",
                 getMonthName(item.month || "N/A"),
