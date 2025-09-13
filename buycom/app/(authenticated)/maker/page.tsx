@@ -886,7 +886,7 @@ export default function AdminDashboard() {
             try {
                 setIsLoading(true);
                 const response = await fetch(`${API_URL}/update_annual_turnover/`, {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
