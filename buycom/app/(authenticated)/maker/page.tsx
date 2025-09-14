@@ -266,6 +266,7 @@ export default function AdminDashboard() {
 const generatePDF = async (gstin: string) => {
     setIsLoading(true);
     try {
+        // Fetch the filtered data
         const items = await filterDataForPDF(gstin);
         if (!Array.isArray(items) || items.length === 0) {
             console.error("No data found for the provided GSTIN or array is empty");
@@ -273,9 +274,9 @@ const generatePDF = async (gstin: string) => {
             return;
         }
 
+        // Deduplicate records based on key fields
         const uniqueKey = (item: CompanyData) =>
             `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
-
         const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
 
         // Get today's date
@@ -283,7 +284,7 @@ const generatePDF = async (gstin: string) => {
         const currentMonth = today.getMonth() + 1; // Months are 0-based
         const currentYear = today.getFullYear();
 
-        // Calculate financial years
+        // Determine financial start year
         let financialStartYear;
         if (currentMonth >= 4) { // April or later
             financialStartYear = currentYear;
@@ -291,13 +292,14 @@ const generatePDF = async (gstin: string) => {
             financialStartYear = currentYear - 1;
         }
 
+        // Allowed financial years: last 2 years and current one
         const allowedYears = [
             financialStartYear - 2,
             financialStartYear - 1,
             financialStartYear
         ];
 
-        // Filter records based on financial years and months
+        // Filter records by financial years and months
         const filteredItems = uniqueItems.filter(item => {
             const year = parseInt(item.year || "0", 10);
             const month = parseInt(item.month || "0", 10);
@@ -307,7 +309,7 @@ const generatePDF = async (gstin: string) => {
             }
 
             if (year === financialStartYear && month > currentMonth) {
-                return false; // Exclude future months in the current financial year
+                return false; // Exclude future months in current financial year
             }
 
             return true;
@@ -319,7 +321,7 @@ const generatePDF = async (gstin: string) => {
             return;
         }
 
-        // Continue with PDF generation using filteredItems
+        // Initialize jsPDF
         const doc = new jsPDF();
         doc.addImage('/image.png', 'JPEG', 10, 0, 30, 22);
         doc.setFontSize(24);
@@ -329,12 +331,13 @@ const generatePDF = async (gstin: string) => {
         doc.line(50, 18, 160, 18);
         doc.setFontSize(10);
 
-        // Calculate aggregates based on filteredItems
+        // Calculate aggregates for summary
         const delayedCount = filteredItems.filter(item => item.delayed_filling === "Yes").length;
         const total = filteredItems.length;
         const percent = total > 0 ? ((delayedCount / total) * 100).toFixed(1) + "%" : "0%";
         const avgDelay = total > 0 ? (filteredItems.reduce((sum, item) => sum + parseFloat(item.Delay_days || "0"), 0) / total).toFixed(1) : "0";
 
+        // Add summary data as a table
         const summaryTableData = [
             ["GSTIN", filteredItems[0].gstin || "N/A", "STATUS", filteredItems[0].return_status || "N/A"],
             ["LEGAL NAME", filteredItems[0].legal_name || "N/A", "REG. DATE", filteredItems[0].registration_date || "N/A"],
@@ -356,7 +359,7 @@ const generatePDF = async (gstin: string) => {
 
         let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
 
-        // Sort filteredItems
+        // Sorting logic for filteredItems
         filteredItems.sort((a, b) => {
             const yearA = parseInt(a.year || "0", 10);
             const yearB = parseInt(b.year || "0", 10);
@@ -367,9 +370,11 @@ const generatePDF = async (gstin: string) => {
             if (yearA < yearB) return 1;
             if (monthA > monthB) return -1;
             if (monthA < monthB) return 1;
+
             return 0;
         });
 
+        // Helper function to prepare table data
         const prepareTableData = (records: CompanyData[]) =>
             records.map((item) => [
                 item.year || "N/A",
@@ -387,6 +392,7 @@ const generatePDF = async (gstin: string) => {
         const gstr3bTableData = prepareTableData(gstr3bRecords);
         const otherTableData = prepareTableData(otherRecords);
 
+        // Add GSTR3B records table
         if (gstr3bTableData.length > 0) {
             doc.autoTable({
                 startY: yPos,
@@ -405,10 +411,10 @@ const generatePDF = async (gstin: string) => {
                     6: { cellWidth: 25 },
                 },
             });
-
             yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 20 : 30;
         }
 
+        // Add Other records table
         if (otherTableData.length > 0) {
             doc.setFontSize(20);
             doc.text("Other Records", 80, yPos - 5);
@@ -431,6 +437,7 @@ const generatePDF = async (gstin: string) => {
             });
         }
 
+        // Save the PDF
         doc.save(`${gstin}_summary.pdf`);
     } catch (error) {
         console.error("Error generating PDF:", error);
