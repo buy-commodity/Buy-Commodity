@@ -265,6 +265,7 @@ export default function AdminDashboard() {
 
     const generatePDF = async (gstin: string) => {
         setIsLoading(true);
+        console.log(gstin)
         try {
             // Fetch the data from the API
             const items = await filterDataForPDF(gstin);
