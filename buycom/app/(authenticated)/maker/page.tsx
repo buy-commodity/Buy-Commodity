@@ -279,7 +279,9 @@ export default function AdminDashboard() {
             const uniqueKey = (item: CompanyData) =>
                 `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
             const uniqueItems = Array.from(new Map(items.map(item => [uniqueKey(item), item])).values());
-    
+            
+            console.log(`${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`);
+
             // Get today's date
             const today = new Date();
             const currentMonth = today.getMonth() + 1; // Months are 0-based
