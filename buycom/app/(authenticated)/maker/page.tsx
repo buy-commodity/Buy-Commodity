@@ -274,7 +274,7 @@ export default function AdminDashboard() {
                 setIsLoading(false);
                 return;
             }
-    
+            console.log(items)
             // Deduplicate records based on key fields
             const uniqueKey = (item: CompanyData) =>
                 `${item.year}-${item.month}-${item.return_type}-${item.date_of_filing}-${item.return_period || ''}`;
