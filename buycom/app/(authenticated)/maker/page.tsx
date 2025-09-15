@@ -109,7 +109,7 @@ export default function AdminDashboard() {
             (filters.status === 'all' || item.result === filters.status)
         )
 
-        console.log(allData)
+        console.log("allData :", item.return_period)
 
         if (searchQuery) {
             filteredData = filteredData.filter(item =>
