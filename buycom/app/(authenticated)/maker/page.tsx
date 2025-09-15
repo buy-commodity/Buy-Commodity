@@ -109,6 +109,8 @@ export default function AdminDashboard() {
             (filters.status === 'all' || item.result === filters.status)
         )
 
+        console.log(allData)
+
         if (searchQuery) {
             filteredData = filteredData.filter(item =>
                 item.gstin?.toLowerCase().includes(searchQuery.toLowerCase())
