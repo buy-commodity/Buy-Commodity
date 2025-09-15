@@ -107,9 +107,11 @@ export default function AdminDashboard() {
             (filters.gstin === '' || item.gstin?.toLowerCase().includes(filters.gstin.toLowerCase())) &&
             (filters.state === '' || item.state?.toLowerCase().includes(filters.state.toLowerCase())) &&
             (filters.status === 'all' || item.result === filters.status)
+            console.log("allData :", item.return_period)
+
         )
 
-        console.log("allData :", item.return_period)
+        console.log("allData :", items.return_period)
 
         if (searchQuery) {
             filteredData = filteredData.filter(item =>
