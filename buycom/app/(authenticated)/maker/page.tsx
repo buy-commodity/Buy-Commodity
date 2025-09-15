@@ -119,6 +119,8 @@ export default function AdminDashboard() {
 
         const uniqueData = Array.from(new Map(filteredData.map((item: CompanyData) => [item.gstin, item])).values())
         const sortedData = sortData(uniqueData)
+        console.log("sortedData : ", sortedData);
+
 
         setDisplayData(sortedData)
         setCurrentPage(1)
