@@ -1090,7 +1090,7 @@ export default function AdminDashboard() {
                 columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 70 }, 2: { cellWidth: 45 }, 3: { cellWidth: 30 } },
             });
     
-            let yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
+            const yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : 20;
     
             // Sort filtered GSTR3B items by year and month descending
             filteredGSTR3BItems.sort((a, b) => {
