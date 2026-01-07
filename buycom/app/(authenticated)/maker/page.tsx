@@ -1041,7 +1041,7 @@ export default function AdminDashboard() {
                     return false;
                 }
     
-                if (year === financialStartYear && month > currentMonth) {
+                if (year === financialStartYear && currentMonth >= 4 && month > currentMonth) {
                     return false; // Exclude future months in current financial year
                 }
     
